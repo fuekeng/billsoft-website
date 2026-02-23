@@ -1,26 +1,38 @@
 name: Deploy to S3
 
 on:
+  # Déclenchement manuel uniquement pour main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environnement cible'
+        required: true
+        default: 'main'
+        type: choice
+        options:
+          - main
+
+  # Déclenchement automatique pour develop
   push:
     branches:
       - develop
     paths:
       - '**'
       - '!README.md'
+
   pull_request:
     branches:
-      - main
       - develop
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to deploy'
-        required: true
-        default: 'main'
+    paths:
+      - '**'
+      - '!README.md'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    env:
+      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && 'main' || 'develop' }}
 
     steps:
     - name: Checkout code
@@ -33,15 +45,25 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-west-3
 
-    - name: Determine S3 bucket
+    - name: Set S3 bucket target
       id: bucket
       run: |
-        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "bucket=billsoft-bloc-prod-website" >> $GITHUB_OUTPUT
+        if [ "${{ env.TARGET_BRANCH }}" == "main" ]; then
+          echo "name=billsoft-bloc-prod-website" >> $GITHUB_OUTPUT
         else
-          echo "bucket=billsoft-bloc-dev-website" >> $GITHUB_OUTPUT
+          echo "name=billsoft-bloc-dev-website" >> $GITHUB_OUTPUT
         fi
 
     - name: Sync files to S3 bucket
       run: |
-        aws s3 sync . s3://${{ steps.bucket.outputs.bucket }} --delete --exclude ".github/*"
+        aws s3 sync . s3://${{ steps.bucket.outputs.name }} \
+          --delete \
+          --exclude ".github/*" \
+          --exclude "README.md"
+
+    - name: Summary
+      run: |
+        echo "### ✅ Déploiement terminé" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branche** : ${{ env.TARGET_BRANCH }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Bucket** : ${{ steps.bucket.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Déclencheur** : ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
