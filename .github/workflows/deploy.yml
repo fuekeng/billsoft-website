@@ -3,6 +3,14 @@ name: Deploy to S3
 on:
   # Déclenchement manuel depuis main
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environnement cible'
+        required: true
+        default: 'develop'
+        type: choice
+        options:
+          - main
 
   # Déclenchement automatique pour develop
   push:
@@ -11,78 +19,38 @@ on:
     paths:
       - '**'
       - '!README.md'
-<<<<<<< HEAD
-
-  pull_request:
-    branches:
-      - develop
-    paths:
-      - '**'
-      - '!README.md'
-=======
   pull_request:
     branches:
       - main
       - develop
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to deploy'
-        required: true
-        default: 'main'
->>>>>>> develop
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        # Checkout la branche qui a déclenché le workflow
-        ref: ${{ github.ref }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Checkout la branche qui a déclenché le workflow
+          ref: ${{ github.ref }}
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: eu-west-3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
 
-<<<<<<< HEAD
-    - name: Set S3 bucket target
-      id: bucket
-      run: |
-        if [ "${{ github.ref_name }}" == "main" ]; then
-          echo "name=billsoft-bloc-prod-website" >> $GITHUB_OUTPUT
-        else
-          echo "name=billsoft-bloc-dev-website" >> $GITHUB_OUTPUT
-=======
-    - name: Determine S3 bucket
-      id: bucket
-      run: |
-        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "bucket=billsoft-bloc-prod-website" >> $GITHUB_OUTPUT
-        else
-          echo "bucket=billsoft-bloc-dev-website" >> $GITHUB_OUTPUT
->>>>>>> develop
-        fi
+      - name: Determine S3 bucket
+        id: bucket
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "bucket=billsoft-bloc-prod-website" >> $GITHUB_OUTPUT
+          else
+            echo "bucket=billsoft-bloc-dev-website" >> $GITHUB_OUTPUT
+          fi
 
-    - name: Sync files to S3 bucket
-      run: |
-<<<<<<< HEAD
-        aws s3 sync . s3://${{ steps.bucket.outputs.name }} \
-          --delete \
-          --exclude ".github/*" \
-          --exclude "README.md"
-
-    - name: Summary
-      run: |
-        echo "### ✅ Déploiement terminé" >> $GITHUB_STEP_SUMMARY
-        echo "- **Branche** : ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Bucket** : ${{ steps.bucket.outputs.name }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Déclencheur** : ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-=======
-        aws s3 sync . s3://${{ steps.bucket.outputs.bucket }} --delete --exclude ".github/*"
->>>>>>> develop
+      - name: Sync files to S3 bucket
+        run: |
+          aws s3 sync . s3://${{ steps.bucket.outputs.bucket }} --delete --exclude ".github/*"
