@@ -1,16 +1,8 @@
 name: Deploy to S3
 
 on:
-  # Déclenchement manuel uniquement pour main
+  # Déclenchement manuel depuis main
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environnement cible'
-        required: true
-        default: 'main'
-        type: choice
-        options:
-          - main
 
   # Déclenchement automatique pour develop
   push:
@@ -31,12 +23,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    env:
-      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && 'main' || 'develop' }}
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        # Checkout la branche qui a déclenché le workflow
+        ref: ${{ github.ref }}
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -48,7 +40,7 @@ jobs:
     - name: Set S3 bucket target
       id: bucket
       run: |
-        if [ "${{ env.TARGET_BRANCH }}" == "main" ]; then
+        if [ "${{ github.ref_name }}" == "main" ]; then
           echo "name=billsoft-bloc-prod-website" >> $GITHUB_OUTPUT
         else
           echo "name=billsoft-bloc-dev-website" >> $GITHUB_OUTPUT
@@ -64,6 +56,6 @@ jobs:
     - name: Summary
       run: |
         echo "### ✅ Déploiement terminé" >> $GITHUB_STEP_SUMMARY
-        echo "- **Branche** : ${{ env.TARGET_BRANCH }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branche** : ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Bucket** : ${{ steps.bucket.outputs.name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Déclencheur** : ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
